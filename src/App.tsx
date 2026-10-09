@@ -7,6 +7,8 @@ import SensorMap from './components/SensorMap';
 import SensorDetail from './components/SensorDetail';
 import WaterLevelChart from './components/WaterLevelChart';
 import AlertLog from './components/AlertLog';
+import SystemArchitecture from './components/SystemArchitecture';
+import Documentation from './components/Documentation';
 import { SensorData, AlertEvent, AlertTier, HistoricalData, SystemStats } from './types';
 import {
   generateInitialSensors,
@@ -23,7 +25,7 @@ export default function App() {
   const [selectedSensor, setSelectedSensor] = useState<SensorData | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(true);
-  const [activeView, setActiveView] = useState<'dashboard' | 'sensors' | 'alerts'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'sensors' | 'alerts' | 'architecture' | 'docs'>('dashboard');
 
   // Determine highest alert tier
   const highestTier: AlertTier = sensors.reduce((highest, s) => {
@@ -133,18 +135,24 @@ export default function App() {
 
       {/* Navigation tabs */}
       <div className="px-4 pt-3">
-        <div className="flex gap-1 bg-gray-800 rounded-lg p-1 w-fit">
-          {(['dashboard', 'sensors', 'alerts'] as const).map(view => (
+        <div className="flex gap-1 bg-gray-800 rounded-lg p-1 w-fit overflow-x-auto">
+          {([
+            { id: 'dashboard', label: 'Dashboard' },
+            { id: 'sensors', label: 'Sensors' },
+            { id: 'alerts', label: 'Alerts' },
+            { id: 'architecture', label: 'Architecture' },
+            { id: 'docs', label: 'Documentation' },
+          ] as const).map(view => (
             <button
-              key={view}
-              onClick={() => setActiveView(view)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-                activeView === view
+              key={view.id}
+              onClick={() => setActiveView(view.id)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeView === view.id
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
-              {view}
+              {view.label}
             </button>
           ))}
         </div>
@@ -219,17 +227,27 @@ export default function App() {
             <AlertLog alerts={alerts} onAcknowledge={handleAcknowledge} />
           </>
         )}
+
+        {activeView === 'architecture' && (
+          <SystemArchitecture />
+        )}
+
+        {activeView === 'docs' && (
+          <Documentation />
+        )}
       </main>
 
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 px-4 py-3">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap justify-center">
             <span className="text-gray-500 text-xs">FloodGuard v2.1.0</span>
             <span className="text-gray-600 text-xs">|</span>
             <span className="text-gray-500 text-xs">ESP32 IoT Network</span>
             <span className="text-gray-600 text-xs">|</span>
-            <span className="text-gray-500 text-xs">PostgreSQL Backend</span>
+            <span className="text-gray-500 text-xs">Node.js + Express API</span>
+            <span className="text-gray-600 text-xs">|</span>
+            <span className="text-gray-500 text-xs">PostgreSQL + Redis</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
