@@ -17,6 +17,7 @@ import {
   generateAlertEvents,
   getAlertTier,
 } from './data/simulation';
+import { Zap, Pause, Play, RotateCcw, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   const [sensors, setSensors] = useState<SensorData[]>(generateInitialSensors());
@@ -26,6 +27,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bannerVisible, setBannerVisible] = useState(true);
   const [activeView, setActiveView] = useState<'dashboard' | 'sensors' | 'alerts' | 'architecture' | 'docs'>('dashboard');
+  const [simulationPaused, setSimulationPaused] = useState(false);
 
   // Determine highest alert tier
   const highestTier: AlertTier = sensors.reduce((highest, s) => {
@@ -41,6 +43,8 @@ export default function App() {
 
   // Simulate real-time sensor updates
   useEffect(() => {
+    if (simulationPaused) return;
+    
     const interval = setInterval(() => {
       setSensors(prev => {
         const updated = prev.map(sensor => {
@@ -63,7 +67,7 @@ export default function App() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [simulationPaused]);
 
   // Generate new alerts when tier changes
   useEffect(() => {
@@ -164,6 +168,63 @@ export default function App() {
           <>
             {/* System Overview Stats */}
             <SystemOverview stats={stats} />
+
+            {/* Simulation Controls */}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-3 flex flex-wrap items-center gap-2">
+              <span className="text-gray-400 text-xs font-medium mr-2 flex items-center gap-1">
+                <Zap className="w-3 h-3 text-yellow-400" /> Simulation:
+              </span>
+              <button
+                onClick={() => setSimulationPaused(!simulationPaused)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  simulationPaused 
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' 
+                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
+                }`}
+              >
+                {simulationPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                {simulationPaused ? 'Resume' : 'Pause'}
+              </button>
+              <button
+                onClick={() => {
+                  setSensors(generateInitialSensors());
+                  setHistoricalData(generateHistoricalData());
+                  setBannerVisible(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset
+              </button>
+              <button
+                onClick={() => {
+                  setSensors(prev => prev.map(s => ({
+                    ...s,
+                    waterLevel: s.maxLevel * (0.85 + Math.random() * 0.1),
+                    tier: 'emergency' as AlertTier,
+                  })));
+                  setBannerVisible(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+              >
+                <AlertTriangle className="w-3 h-3" /> Trigger Emergency
+              </button>
+              <button
+                onClick={() => {
+                  setSensors(prev => prev.map(s => ({
+                    ...s,
+                    waterLevel: 30 + Math.random() * 50,
+                    tier: getAlertTier(30 + Math.random() * 50, s.maxLevel),
+                  })));
+                  setBannerVisible(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
+              >
+                All Clear
+              </button>
+              {simulationPaused && (
+                <span className="text-amber-400 text-[10px] animate-pulse ml-2">⏸ PAUSED</span>
+              )}
+            </div>
 
             {/* Charts and Map Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
