@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import AlertBanner from './components/AlertBanner';
 import SystemOverview from './components/SystemOverview';
@@ -9,6 +9,8 @@ import WaterLevelChart from './components/WaterLevelChart';
 import AlertLog from './components/AlertLog';
 import SystemArchitecture from './components/SystemArchitecture';
 import Documentation from './components/Documentation';
+import LiveFeed from './components/LiveFeed';
+import ToastContainer, { Toast } from './components/ToastContainer';
 import { SensorData, AlertEvent, AlertTier, HistoricalData, SystemStats } from './types';
 import {
   generateInitialSensors,
@@ -28,6 +30,8 @@ export default function App() {
   const [bannerVisible, setBannerVisible] = useState(true);
   const [activeView, setActiveView] = useState<'dashboard' | 'sensors' | 'alerts' | 'architecture' | 'docs'>('dashboard');
   const [simulationPaused, setSimulationPaused] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const prevTiersRef = useRef<Map<string, AlertTier>>(new Map());
 
   // Determine highest alert tier
   const highestTier: AlertTier = sensors.reduce((highest, s) => {
@@ -91,6 +95,41 @@ export default function App() {
       });
     }
   }, [sensors.map(s => `${s.id}-${s.tier}`).join(',')]);
+
+  // Generate toasts when sensor tiers change
+  useEffect(() => {
+    const currentTiers = new Map(sensors.map(s => [s.id, s.tier]));
+    const newToasts: Toast[] = [];
+    
+    currentTiers.forEach((tier, sensorId) => {
+      const prevTier = prevTiersRef.current.get(sensorId);
+      if (prevTier && prevTier !== tier && tier !== 'normal') {
+        const sensor = sensors.find(s => s.id === sensorId);
+        if (sensor) {
+          newToasts.push({
+            id: `toast-${sensorId}-${Date.now()}`,
+            tier,
+            message: `${sensor.name}: Level changed from ${prevTier} to ${tier} (${sensor.waterLevel.toFixed(1)} cm)`,
+            timestamp: Date.now(),
+          });
+        }
+      }
+    });
+    
+    if (newToasts.length > 0) {
+      setToasts(prev => [...newToasts, ...prev].slice(0, 5));
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => !newToasts.find(nt => nt.id === t.id)));
+      }, 5000);
+    }
+    
+    prevTiersRef.current = currentTiers;
+  }, [sensors]);
+
+  const handleDismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const handleAcknowledge = useCallback((id: string) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a));
@@ -232,6 +271,9 @@ export default function App() {
               <SensorMap sensors={sensors} onSensorClick={setSelectedSensor} />
             </div>
 
+            {/* Live Feed */}
+            <LiveFeed sensors={sensors} />
+
             {/* Sensors and Alerts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
@@ -316,6 +358,9 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
 
       {/* Sensor Detail Modal */}
       {selectedSensor && (
